@@ -1,0 +1,32 @@
+<html>
+<head>
+<title>WebSockVR - Three.js Scene</title>
+<style>body{margin:0px}</style>
+</head>
+<body>
+<script src="js/three.js"></script>
+<script>
+var modelScale = 100; // models are in decimeters (better for blender), world is in millimeters
+var baseOffset = new THREE.Vector3(0, -200, 0);
+var scene = new THREE.Scene();
+</script>
+<script src="js/scene.js"></script>
+<script>
+
+var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
+camera.position.z = 500
+
+var renderer = new THREE.WebGLRenderer();
+renderer.setSize( window.innerWidth, window.innerHeight );
+
+document.body.appendChild( renderer.domElement );
+
+function animate()
+{
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+}
+animate()
+
+</script>
+</body></html>

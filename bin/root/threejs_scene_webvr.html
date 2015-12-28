@@ -1,0 +1,175 @@
+<html>
+<head>
+<title>WebSockVR - Three.js Scene + WebVR</title>
+<style>body{margin:0px}</style>
+</head>
+<body>
+<script src="js/three.js"></script>
+<script>
+var modelScale = 100; // models are in decimeters (better for blender), world is in millimeters
+var hmdScale = 1000; // hmd is in meter, world is in millimeters
+var baseOffset = new THREE.Vector3(0,-410, 230-1000);
+var scene = new THREE.Scene();
+</script>
+<script src="js/scene.js"></script>
+<script>
+
+
+//
+// WebVR
+//
+
+function matrixMakeFromFieldOfView(matrix, fov, zNear, zFar)
+{
+	var upTan = Math.tan(fov.upDegrees * Math.PI/180.0);
+	var downTan = Math.tan(fov.downDegrees * Math.PI/180.0);
+	var leftTan = Math.tan(fov.leftDegrees * Math.PI/180.0);
+	var rightTan = Math.tan(fov.rightDegrees * Math.PI/180.0);
+	var xScale = 2.0 / (leftTan + rightTan);
+	var yScale = 2.0 / (upTan + downTan);
+
+	var out = matrix.elements;
+	out[0] = xScale;
+	out[1] = 0.0;
+	out[2] = 0.0;
+	out[3] = 0.0;
+	out[4] = 0.0;
+	out[5] = yScale;
+	out[6] = 0.0;
+	out[7] = 0.0;
+	out[8] = -((leftTan - rightTan) * xScale * 0.5);
+	out[9] = ((upTan - downTan) * yScale * 0.5);
+	out[10] = -(zNear + zFar) / (zFar - zNear);
+	out[11] = -1.0;
+	out[12] = 0.0;
+	out[13] = 0.0;
+	out[14] = -(2.0 * zFar * zNear) / (zFar - zNear);
+	out[15] = 0.0;
+}
+
+// three.js camera rig
+var cameraLeft = new THREE.PerspectiveCamera();
+var cameraRight = new THREE.PerspectiveCamera();
+var cameraPivot = new THREE.Object3D();
+cameraPivot.add(cameraLeft);
+cameraPivot.add(cameraRight);
+scene.add(cameraPivot);
+
+var gHMD, gPositionSensor, renderTargetWidth, renderTargetHeight;
+navigator.getVRDevices().then(function(devices)
+{
+	console.log(devices)
+	for (var i = 0; i < devices.length; ++i)
+	{
+		if (devices[i] instanceof HMDVRDevice)
+		{
+			gHMD = devices[i];
+
+			// left eye
+			var eye = gHMD.getEyeParameters('left');
+			var leftEyeRect = eye.renderRect;
+			cameraLeft.position.x = eye.eyeTranslation.x * hmdScale;
+			matrixMakeFromFieldOfView(cameraLeft.projectionMatrix, eye.currentFieldOfView, 0.1, 2000)
+
+			// right eye
+			var eye = gHMD.getEyeParameters('right');
+			var rightEyeRect = eye.renderRect;
+			cameraRight.position.x = eye.eyeTranslation.x * hmdScale;
+			matrixMakeFromFieldOfView(cameraRight.projectionMatrix, eye.currentFieldOfView, 0.1, 2000)
+
+			renderTargetWidth = rightEyeRect.x + rightEyeRect.width;
+			renderTargetHeight = Math.max(leftEyeRect.y + leftEyeRect.height, rightEyeRect.y + rightEyeRect.height);
+    		break;
+		}
+	}
+
+	if (gHMD)
+	{
+		for (var i = 0; i < devices.length; ++i)
+		{
+			if (devices[i] instanceof PositionSensorVRDevice &&
+				devices[i].hardwareUnitId == gHMD.hardwareUnitId)
+			{
+				gPositionSensor = devices[i];
+				break;
+			}
+		}
+	}
+});
+
+function ResizeRenderer() {
+    if (document.webkitFullscreenElement || document.mozFullScreenElement) {
+        renderer.setSize(renderTargetWidth, renderTargetHeight);
+    } else {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+}
+document.addEventListener('webkitfullscreenchange', ResizeRenderer, false);
+document.addEventListener('mozfullscreenchange', ResizeRenderer, false);
+
+// set full screen for different browsers
+function requestFullScreen()
+{
+	if (renderer.domElement.requestFullScreen)
+	{
+		renderer.domElement.requestFullScreen({vrDisplay:gHMD});
+	}
+	else if(renderer.domElement.webkitRequestFullScreen)
+	{
+		renderer.domElement.webkitRequestFullScreen({vrDisplay:gHMD});
+	}
+	else if (renderer.domElement.mozRequestFullScreen)
+	{
+		renderer.domElement.mozRequestFullScreen({vrDisplay:gHMD});
+	}
+}
+
+window.addEventListener('mousedown', function (e)
+{
+	requestFullScreen();
+}, true);
+
+//
+// main loop
+//
+
+var renderer = new THREE.WebGLRenderer();
+renderer.setSize( window.innerWidth, window.innerHeight );
+
+document.body.appendChild( renderer.domElement );
+
+function animate()
+{
+	requestAnimationFrame( animate );
+
+	if (gPositionSensor)
+	{
+		// update the head
+		var state = gPositionSensor.getState();
+		cameraPivot.quaternion.copy(state.orientation);
+		cameraPivot.position.copy(state.position);
+		cameraPivot.position.multiplyScalar(hmdScale);
+		var renderTargetWidth = renderer.domElement.clientWidth;
+		var renderTargetHeight = renderer.domElement.clientHeight;
+
+		// render left
+		renderer.enableScissorTest(true);
+        renderer.setScissor(0, 0, renderTargetWidth / 2, renderTargetHeight);
+        renderer.setViewport(0, 0, renderTargetWidth / 2, renderTargetHeight);
+        renderer.render(scene, cameraLeft);
+
+		// render right
+		renderer.enableScissorTest(true);
+        renderer.setScissor(renderTargetWidth / 2, 0, renderTargetWidth / 2, renderTargetHeight);
+        renderer.setViewport(renderTargetWidth / 2, 0, renderTargetWidth / 2, renderTargetHeight);
+        renderer.render(scene, cameraRight);
+	}
+	else
+	{
+		renderer.render( scene, cameraLeft );
+	}
+}
+animate()
+
+</script>
+</body></html>

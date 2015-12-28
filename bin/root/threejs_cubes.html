@@ -1,0 +1,77 @@
+<html><body>
+<style>body{margin:0px}</style>
+<script src="js/three.js"></script>
+<script>
+//
+// Three.js simple cube test
+//
+var scene = new THREE.Scene();
+
+var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
+camera.position.z = 1000;
+
+var geometry = new THREE.BoxGeometry( 50, 50, 50 );
+var material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+
+var controllerMesh = []
+controllerMesh[0] = new THREE.Mesh( geometry, material );
+scene.add( controllerMesh[0] );
+
+controllerMesh[1] = new THREE.Mesh( geometry, material );
+scene.add( controllerMesh[1] );
+
+var renderer = new THREE.WebGLRenderer();
+renderer.setSize( window.innerWidth, window.innerHeight );
+
+document.body.appendChild( renderer.domElement );
+
+function animate()
+{
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+}
+animate()
+
+//
+// WebSockVR
+//
+var ws = new WebSocket('ws://' + location.host + '/ws');
+ws.onopen = function(ev)  { console.log(ev); };
+ws.onerror = function(ev) { console.log(ev); };
+ws.onclose = function(ev) { console.log(ev); };
+ws.onmessage = function(ev)
+{
+	lastMsg = ev.data;
+	var bases = JSON.parse(ev.data);
+	if (bases && bases[0] && bases[0][0] && bases[0][0].rot_mat)
+	{
+		if (bases[0][0] && bases[0][0].rot_mat)
+		{
+			var mesh = controllerMesh[0]
+			var controller = bases[0][0]
+			mesh.quaternion.x = controller.rot_quat[0];
+			mesh.quaternion.y = controller.rot_quat[1];
+			mesh.quaternion.z = controller.rot_quat[2];
+			mesh.quaternion.w = controller.rot_quat[3];
+			mesh.position.x = controller.pos[0];
+			mesh.position.y = controller.pos[1];
+			mesh.position.z = controller.pos[2];
+		}
+		if (bases[0][1] && bases[0][1].rot_mat)
+		{
+			var mesh = controllerMesh[1]
+			var controller = bases[0][1]
+			mesh.quaternion.x = controller.rot_quat[0];
+			mesh.quaternion.y = controller.rot_quat[1];
+			mesh.quaternion.z = controller.rot_quat[2];
+			mesh.quaternion.w = controller.rot_quat[3];
+			mesh.position.x = controller.pos[0];
+			mesh.position.y = controller.pos[1];
+			mesh.position.z = controller.pos[2];
+		}
+	}
+	ws.send('*');
+}
+
+</script>
+</body></html>

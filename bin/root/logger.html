@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>WebSockVR log</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+	table {
+		display:inline-block;
+	}
+	</style>
+</head>
+<body>
+<button onclick="ping()">Update</button>
+<button onclick="ping();live=true">Realtime</button>
+<button onclick="ping();live=false">Stop</button>
+<div>
+</div>
+<script>
+var div = document.querySelector('div')
+
+function getTable(index)
+{
+	while (index >= div.children.length)
+	{
+		var table = document.createElement('table')
+		var tbody = document.createElement('tbody')
+		table.appendChild(tbody)
+		div.appendChild(table)
+	}
+	return div.children[index]
+}
+
+function getRow(tbody, index)
+{
+	while (index >= tbody.children.length)
+	{
+		var row = document.createElement('tr')
+		tbody.appendChild(row)
+	}
+	return tbody.children[index];
+}
+
+function setCol(row, index, text)
+{
+	while (index >= row.children.length)
+	{
+		var col = document.createElement('td');
+		row.appendChild(col);
+	}
+	row.children[index].textContent = text;
+}
+
+var live = false;
+var ws = null;
+function connect()
+{
+	ws = new WebSocket('ws://' + location.host + '/ws');
+	ws.onopen = function(ev)  { console.log(ev); };
+	ws.onerror = function(ev) { console.log(ev); };
+	ws.onclose = function(ev) { console.log(ev); };
+	ws.onmessage = function(ev)
+	{
+		var bases = JSON.parse(ev.data)
+		var ti = 0 // row index
+		for (var b = 0; b < bases.length; b++)
+		{
+			var controllers = bases[b]
+			for (var c = 0; c < controllers.length; c++)
+			{
+				var controller = controllers[c]
+				var table = getTable(ti++)
+				var tbody = table.children[0]
+				var ri = 0
+				for (var prop in controller)
+				{
+					var row = getRow(tbody, ri++)
+					setCol(row, 0, prop)
+					setCol(row, 1, controller[prop])
+					gcontroller = controller
+				}
+			}
+		}
+		if (live)
+		{
+			ws.send('*');
+		}
+	};
+}
+
+function ping()
+{
+	if (ws && ws.readyState == 1)
+	{
+		ws.send('*');
+	}
+	else
+	{
+		connect()
+	}
+}
+
+connect()
+</script>
+</body>
+</html>
