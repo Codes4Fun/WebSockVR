@@ -111,6 +111,11 @@ ws.onclose = function(ev) { console.log(ev); };
 ws.onmessage = function(ev)
 {
 	lastMsg = ev.data;
+	if (!controllerModel[0])
+	{
+		ws.send('*');
+		return;
+	}
 	var bases = JSON.parse(ev.data);
 	if (bases && bases[0] && bases[0][0] && bases[0][0].rot_mat)
 	{
