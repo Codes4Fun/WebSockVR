@@ -55,7 +55,10 @@ cameraPivot.add(cameraLeft);
 cameraPivot.add(cameraRight);
 scene.add(cameraPivot);
 
-var gHMD, gPositionSensor, renderTargetWidth, renderTargetHeight;
+var renderTargetWidth = window.innerWidth;
+var renderTargetHeight = window.innerHeight;
+
+var gHMD, gPositionSensor;
 navigator.getVRDevices().then(function(devices)
 {
 	console.log(devices)
@@ -67,18 +70,13 @@ navigator.getVRDevices().then(function(devices)
 
 			// left eye
 			var eye = gHMD.getEyeParameters('left');
-			var leftEyeRect = eye.renderRect;
 			cameraLeft.position.x = eye.eyeTranslation.x * hmdScale;
 			matrixMakeFromFieldOfView(cameraLeft.projectionMatrix, eye.currentFieldOfView, 0.1, 2000)
 
 			// right eye
 			var eye = gHMD.getEyeParameters('right');
-			var rightEyeRect = eye.renderRect;
 			cameraRight.position.x = eye.eyeTranslation.x * hmdScale;
 			matrixMakeFromFieldOfView(cameraRight.projectionMatrix, eye.currentFieldOfView, 0.1, 2000)
-
-			renderTargetWidth = rightEyeRect.x + rightEyeRect.width;
-			renderTargetHeight = Math.max(leftEyeRect.y + leftEyeRect.height, rightEyeRect.y + rightEyeRect.height);
     		break;
 		}
 	}
@@ -97,12 +95,22 @@ navigator.getVRDevices().then(function(devices)
 	}
 });
 
-function ResizeRenderer() {
-    if (document.webkitFullscreenElement || document.mozFullScreenElement) {
-        renderer.setSize(renderTargetWidth, renderTargetHeight);
-    } else {
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
+function ResizeRenderer()
+{
+	if (document.webkitFullscreenElement || document.mozFullScreenElement)
+	{
+		var leftEyeRect = gHMD.getEyeParameters('left').renderRect;
+		var rightEyeRect = gHMD.getEyeParameters('right').renderRect;
+
+		renderTargetWidth = rightEyeRect.x + rightEyeRect.width;
+		renderTargetHeight = Math.max(leftEyeRect.y + leftEyeRect.height, rightEyeRect.y + rightEyeRect.height);
+	}
+	else
+	{
+		renderTargetWidth = window.innerWidth;
+		renderTargetHeight = window.innerHeight;
+	}
+	renderer.setSize(renderTargetWidth, renderTargetHeight);
 }
 document.addEventListener('webkitfullscreenchange', ResizeRenderer, false);
 document.addEventListener('mozfullscreenchange', ResizeRenderer, false);
@@ -149,8 +157,6 @@ function animate()
 		cameraPivot.quaternion.copy(state.orientation);
 		cameraPivot.position.copy(state.position);
 		cameraPivot.position.multiplyScalar(hmdScale);
-		var renderTargetWidth = renderer.domElement.clientWidth;
-		var renderTargetHeight = renderer.domElement.clientHeight;
 
 		// render left
 		renderer.enableScissorTest(true);
