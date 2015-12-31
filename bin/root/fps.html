@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>cannon.js + three.js physics shooter</title>
+<style>
+html, body {
+	width: 100%;
+	height: 100%;
+}
+body {
+	background-color: #ffffff;
+	margin: 0;
+	overflow: hidden;
+	font-family: arial;
+}
+</style>
+</head>
+<body>
+<script src="js/Three.js"></script>
+<script src="js/cannon.js"></script>
+<script src="js/fpsCommon.js"></script>
+<script src="js/fpsVR.js"></script>
+<script>
+//
+// Renderer
+//
+var renderer = createVRRenderer();
+document.body.appendChild( renderer.domElement );
+
+
+//
+// World/Scene
+//
+var context = createWorldContext();
+generateDefaultScene(context);
+
+//
+// Player
+//
+createVRPlayer(context);
+
+//
+// Main Loop
+//
+var dt = 1/60;
+function animate()
+{
+	requestAnimationFrame( animate );
+	if (ws.readyState == 1)
+	{
+		ws.send('*');
+	}
+
+	context.world.step(dt);
+
+	context.updateables.forEach(function (updateable)
+	{
+		updateable.update( dt );
+	});
+
+	if ((document.webkitFullscreenElement || document.mozFullScreenElement) && gHMD)
+	{
+		// render left
+		renderer.enableScissorTest(true);
+		renderer.setScissor(0, 0, renderTargetWidth / 2, renderTargetHeight);
+		renderer.setViewport(0, 0, renderTargetWidth / 2, renderTargetHeight);
+		renderer.render( context.scene, context.activeLeftCamera );
+
+		// render right
+		renderer.enableScissorTest(true);
+		renderer.setScissor(renderTargetWidth / 2, 0, renderTargetWidth / 2, renderTargetHeight);
+		renderer.setViewport(renderTargetWidth / 2, 0, renderTargetWidth / 2, renderTargetHeight);
+		renderer.render( context.scene, context.activeRightCamera );
+	}
+	else
+	{
+		renderer.enableScissorTest(false);
+		renderer.setScissor(0, 0, renderTargetWidth, renderTargetHeight);
+		renderer.setViewport(0, 0, renderTargetWidth, renderTargetHeight);
+		renderer.render( context.scene, context.activeLeftCamera );
+	}
+}
+
+requestAnimationFrame( animate );
+</script>
+</body>
+</html>
