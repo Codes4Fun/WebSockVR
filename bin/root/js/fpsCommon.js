@@ -23,6 +23,19 @@ ws.onmessage = function(ev)
 	}
 };
 
+function loadHydra(basePosition)
+{
+	var baseText = localStorage.getItem('HydraBase');
+	if (baseText)
+	{
+		var position = JSON.parse(baseText);
+		basePosition.copy(position);
+	}
+}
+var baseOffset = new Vector3(0, -400, -590);
+loadHydra(baseOffset);
+
+
 function CannonUpdateable(body, mesh)
 {
 	this.update = function ()
@@ -276,8 +289,9 @@ function createDefaultPlayer(context)
 	var hydraRightController = new THREE.Mesh( boxGeometry, context.defaultMaterial );
 	var hydraLeftController = new THREE.Mesh( boxGeometry, context.defaultMaterial );
 	var hydraBaseObject = new THREE.Object3D();
-	hydraBaseObject.position.z = -0.59;
-	hydraBaseObject.position.y = -0.4;
+	hydraBaseObject.position.x = baseOffset.x / 1000;
+	hydraBaseObject.position.y = baseOffset.y / 1000;
+	hydraBaseObject.position.z = baseOffset.z / 1000;
 	hydraBaseObject.add( hydraRightController );
 	hydraBaseObject.add( hydraLeftController );
 	playerBody.add( hydraBaseObject );

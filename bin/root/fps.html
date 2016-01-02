@@ -44,13 +44,26 @@ createVRPlayer(context);
 // Main Loop
 //
 var dt = 1/60;
-function animate()
+var lastTime = 0;
+function animate(time)
 {
 	requestAnimationFrame( animate );
 	if (ws.readyState == 1)
 	{
 		ws.send('*');
 	}
+	
+	dt = (time - lastTime) / 1000;
+	// cap the dt between 30fps and 120fps
+	if (dt > 1/30)
+	{
+		dt = 1/30;
+	}
+	else if (dt < 1/120)
+	{
+		dt = 1/120;
+	}
+	lastTime = time;
 
 	context.world.step(dt);
 

@@ -8,8 +8,22 @@
 <script>
 var modelScale = 100; // models are in decimeters (better for blender), world is in millimeters
 var hmdScale = 1000; // hmd is in meter, world is in millimeters
-var baseOffset = new THREE.Vector3(0,-410, 230-1000);
+//var baseOffset = new THREE.Vector3(0,-410, 230-1000);
+var baseOffset = new THREE.Vector3(0,-400, 400-1000);
 var scene = new THREE.Scene();
+
+function loadHydra(basePosition)
+{
+	var baseText = localStorage.getItem('HydraBase');
+	if (baseText)
+	{
+		var position = JSON.parse(baseText);
+		basePosition.copy(position);
+	}
+}
+
+loadHydra(baseOffset);
+
 </script>
 <script src="js/scene.js"></script>
 <script>

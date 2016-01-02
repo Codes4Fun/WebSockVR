@@ -1,0 +1,708 @@
+<html>
+<head>
+<title>WebSockVR - Razer Hydra Setup</title>
+</head>
+<body style="margin:0px">
+<script src="js/three.js"></script>
+<script src="js/keys.js"></script>
+<script src="js/editbox.js"></script>
+<script>
+var modelScale = 100; // models are in decimeters (better for blender), world is in millimeters
+var baseOffset = new THREE.Vector3(0, -400, -500);
+var scene = new THREE.Scene();
+
+function loadHydra(basePosition)
+{
+	var baseText = localStorage.getItem('HydraBase');
+	if (baseText)
+	{
+		var position = JSON.parse(baseText);
+		basePosition.copy(position);
+	}
+}
+
+function saveHydra(position)
+{
+	localStorage.setItem('HydraBase', JSON.stringify(position));
+}
+
+loadHydra(baseOffset);
+
+var intersectTests = [];
+
+// grab these objects when the scene is loaded
+var controllerModel = []
+var joystickModel = []
+var buttonModels = []
+var triggerModels = []
+
+var DK2, DK2Camera, HydraBase
+function onSceneLoaded ( objects ) {
+	DK2Camera = objects.getObjectByName('DK2Camera');
+	if (DK2Camera)
+	{
+		objects.remove(DK2Camera);
+		DK2Camera.scale.set(modelScale, modelScale, modelScale);
+		DK2Camera.position.z = -1000;
+		DK2Camera.material.color.set(0);
+		scene.add(DK2Camera);
+	}
+
+	HydraBase = objects.getObjectByName('HydraBase');
+	if (HydraBase)
+	{
+		objects.remove(HydraBase);
+		HydraBase.material.color.set(0);
+		HydraBase.scale.set(modelScale, modelScale, modelScale);
+		HydraBase.position.copy(baseOffset);
+		scene.add(HydraBase);
+		intersectTests.push(HydraBase);
+	}
+
+	var HydraController0 = HydraBase.getObjectByName('HydraController.Pivot');
+	if (HydraController0)
+	{
+		HydraBase.remove(HydraController0);
+	}
+}
+
+var objectLoader = new THREE.ObjectLoader();
+objectLoader.load('scene.json', onSceneLoaded );
+
+objectLoader.load('DK2.json', function (objects)
+{
+	DK2 = objects.getObjectByName('Oculus_Rift_DK2');
+	if (DK2)
+	{
+		objects.remove(DK2);
+		DK2.scale.set(modelScale, modelScale, modelScale);
+		DK2.material.color.set(0);
+		DK2.children[0].material.color.set(0)
+		scene.add(DK2);
+	}
+});
+
+
+//var aspect = window.innerWidth / window.innerHeight;
+//var camera = new THREE.PerspectiveCamera( 75, aspect, 1, 10000 );
+
+var camera = new THREE.OrthographicCamera();
+function updateCamera()
+{
+	camera.left = window.innerWidth/-1;
+	camera.right = window.innerWidth/1;
+	camera.top = window.innerHeight/1;
+	camera.bottom = window.innerHeight/-1;
+	camera.position.set(500, -window.innerHeight + 180, -500);
+	camera.updateProjectionMatrix();
+}
+
+camera.rotation.y = Math.PI/2;
+scene.add( camera );
+updateCamera();
+
+var renderer = new THREE.WebGLRenderer({
+	antialias : true
+});
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setClearColor(0xffffff);
+document.body.appendChild( renderer.domElement );
+
+window.addEventListener('resize', function () {
+	updateCamera();
+	renderer.setSize( window.innerWidth, window.innerHeight );
+}, true);
+
+
+function createCanvasObject(width, height)
+{
+	var canvas = document.createElement('canvas');
+}
+
+var editBoxStyle = {
+	padding : 2,
+	font : 'Sans',
+	fontSize : 16,
+	fontColor : 'black',
+	background : 'white',
+	//border : { color: '#a9a9a9', width : 1 },
+	border : { color: '#F0F0F0', width : 1 },
+	focusBorder : { color: '#7FD9FD', width : 1 },
+	cursorColor : 'black',
+	cursorWidth : 1,
+	selectionColor : '#338fff',
+	selectionFontColor : 'white',
+};
+
+function NumericEditBox(n, padding, sync)
+{
+	var canvas = document.createElement('canvas');
+	canvas.width = 52 + padding*2;
+	canvas.height = 20 + padding*2 - 4;
+	var ctx = canvas.getContext('2d');
+	var edit = new EditBox(padding-4, padding-4, 28, 20, n.toString(), editBoxStyle);
+	edit.setAlign(ctx, EditBox.RightAlign);
+	edit.numeric = true;
+
+	this.edit = edit;
+
+	this.redraw = function ()
+	{
+		var ctx = this.mesh.material.map.image.getContext('2d');
+		ctx.fillStyle = "white";
+		ctx.fillRect(0,0,canvas.width, canvas.height);
+		edit.draw(ctx);
+		var tx = edit.x + edit.width;
+		var ty = edit.y + edit.style.padding;
+		ctx.fillStyle = edit.style.fontColor;
+		ctx.font = edit.style.fontSize + 'px ' + edit.style.font;
+		ctx.textBaseline = 'top';
+		ctx.fillText(' mm', tx, ty);
+		this.mesh.material.map.needsUpdate = true;
+	}
+
+	var texture = new THREE.Texture(canvas)
+	texture.needsUpdate = true;
+	var material = new THREE.MeshBasicMaterial( {map: texture, side:THREE.DoubleSide } );
+	var mesh = new THREE.Mesh( new THREE.PlaneGeometry(canvas.width*2, canvas.height*2), material );
+	mesh.scale.set(1, 1, 1);
+
+	this.mesh = mesh;
+	this.redraw();
+
+	this.update = function (n)
+	{
+		edit.text = n.toString();
+		this.redraw();
+	}
+
+	this.blink = function ()
+	{
+		edit.blink = !edit.blink;
+		this.redraw();
+	}
+
+	this.interval = undefined;
+
+	this.focus = function ()
+	{
+		edit.blink = false;
+		if (edit.focus)
+		{
+			return;
+		}
+		edit.focus = true;
+		if (!this.intervalId)
+		{
+			var scope = this;
+			this.interval = setInterval(function ()
+			{
+				scope.blink();
+			}, 500);
+		}
+	}
+
+	this.blur = function ()
+	{
+		if (edit.focus)
+		{
+			edit.focus = false;
+			this.redraw();
+			if (this.interval !== undefined)
+			{
+				clearInterval(this.interval);
+				this.interval = undefined;
+			}
+		}
+	}
+
+	this.onmousedown = function (x, y)
+	{
+		x = (x + canvas.width) * 0.5;
+		y = (y + canvas.height) * 0.5;
+		//console.log(x + ' ' + y);
+		if (edit.inside(x, y))
+		{
+			var ctx = this.mesh.material.map.image.getContext('2d');
+			edit.onmousedown(ctx, x - edit.x, y - edit.y);
+			return true;
+		}
+		return false;
+	}
+
+	this.onmousemove = function (x, y)
+	{
+		x = (x + canvas.width) * 0.5;
+		y = (y + canvas.height) * 0.5;
+		var ctx = this.mesh.material.map.image.getContext('2d');
+		edit.onmousemove(ctx, x - edit.x, y - edit.y);
+		this.redraw();
+	}
+	
+	this.hasSelection = function ()
+	{
+		return edit.hasSelection;
+	}
+	
+	this.getSelection = function ()
+	{
+		return edit.getSelection();
+	}
+	
+	this.cutSelection = function ()
+	{
+		var ctx = this.mesh.material.map.image.getContext('2d');
+		return edit.cutSelection(ctx);
+	}
+	
+	this.paste = function (text)
+	{
+		var ctx = this.mesh.material.map.image.getContext('2d');
+		return edit.paste(ctx, text);
+	}
+	
+	this.onkeydown = function (key, shift, ctrl, alt)
+	{
+		var ctx = this.mesh.material.map.image.getContext('2d');
+		edit.blink = false;
+		edit.onkeydown(ctx, key, shift, ctrl, alt);
+	}
+
+	this.onkeypress = function (charCode)
+	{
+		var ctx = this.mesh.material.map.image.getContext('2d');
+		edit.blink = false;
+		edit.onkeypress(ctx, charCode);
+	}
+	
+	this.sync = sync;
+}
+
+function createTextBox(text, fontSize, padding, border)
+{
+	var font = 'Sans';
+	//var font = 'Georgia';
+	//var font = 'Verdana';
+	fontSize = fontSize || 16;
+	padding = padding || 0;
+	var canvas = document.createElement('canvas');
+	var ctx = canvas.getContext('2d');
+	ctx.font = fontSize + 'px ' + font;
+	canvas.width = ctx.measureText(text).width + padding*2;
+	canvas.height = fontSize + padding*2;
+	// clear it
+	ctx.fillStyle = 'white';
+	ctx.strokeStyle = '#808080';
+	ctx.beginPath();
+	ctx.rect(0,0,canvas.width, canvas.height);
+	//ctx.fillRect(0,0,canvas.width, canvas.height);
+	ctx.fill();
+	if (border) ctx.stroke();
+	// draw text
+	ctx.textBaseline = 'top';
+	ctx.font = fontSize + 'px ' + font;
+	ctx.fillStyle = "black";
+	ctx.fillText(text,padding,padding);
+	var texture = new THREE.Texture(canvas)
+	texture.needsUpdate = true;
+	var material = new THREE.MeshBasicMaterial( {map: texture, side:THREE.DoubleSide } );
+	var mesh = new THREE.Mesh( new THREE.PlaneGeometry(canvas.width * 2, canvas.height * 2), material );
+
+	function updateText(text)
+	{
+		var ctx = this.mesh.material.map.image.getContext('2d');
+		// clear it
+		ctx.fillStyle = "white";
+		ctx.fillRect(0,0,canvas.width, canvas.height);
+		// draw text
+		ctx.textBaseline = "top";
+		//ctx.font = fontSize + 'px ' + font;
+		ctx.font = '16px Sans';
+		ctx.fillStyle = "black";
+		ctx.fillText(text,padding,padding);
+		//texture.needsUpdate = true;
+		this.mesh.material.map.needsUpdate = true;
+	}
+	
+	return {
+		mesh : mesh,
+		updateText : updateText,
+	};
+}
+
+var topText = createTextBox('1000 mm', 16, 8);
+topText.mesh.rotation.y = Math.PI/2;
+topText.mesh.position.set(10, 100, -500);
+scene.add(topText.mesh);
+
+var editText = []
+
+//var heightText = createTextBox(Math.round(-baseOffset.y) + ' mm', 16, 8);
+var heightText = new NumericEditBox(Math.round(-baseOffset.y), 8, function ()
+{
+	var n = parseFloat(this.edit.text);
+	if (isNaN(n) || -n > maxHeight)
+	{
+		n = -maxHeight;
+		this.update(Math.round(n));
+	}
+	else if (-n < minHeight)
+	{
+		n = -minHeight;
+		this.update(Math.round(n));
+	}
+	HydraBase.position.y = -n;
+	updateHydra();
+});
+heightText.mesh.rotation.y = Math.PI/2;
+heightText.mesh.position.set(10, baseOffset.y/2, baseOffset.z);
+scene.add(heightText.mesh);
+editText.push(heightText);
+
+//var distanceText = createTextBox(Math.round(-baseOffset.z) + ' mm', 16, 8);
+var distanceText = new NumericEditBox(Math.round(-baseOffset.z), 8, function ()
+{
+	var n = parseFloat(this.edit.text);
+	if (isNaN(n) || -n > maxDistance)
+	{
+		n = -maxDistance;
+		this.update(Math.round(n));
+	}
+	else if (-n < minDistance)
+	{
+		n = -minDistance;
+		this.update(Math.round(n));
+	}
+	HydraBase.position.z = -n;
+	updateHydra();
+});
+distanceText.mesh.rotation.y = Math.PI/2;
+distanceText.mesh.position.set(10, baseOffset.y, baseOffset.z/2);
+scene.add(distanceText.mesh);
+editText.push(distanceText);
+
+var dist = 1000+baseOffset.z;
+//var distance2Text = createTextBox(Math.round(dist) + ' mm', 16, 8);
+var distance2Text = new NumericEditBox(Math.round(dist), 8, function ()
+{
+	var n = parseFloat(this.edit.text);
+	if (isNaN(n) || -n > maxDistance)
+	{
+		n = -maxDistance;
+		this.update(Math.round(n));
+	}
+	else if (-n < minDistance)
+	{
+		n = -minDistance;
+		this.update(Math.round(n));
+	}
+	HydraBase.position.z = -1000+n;
+	updateHydra();
+});
+distance2Text.mesh.rotation.y = Math.PI/2;
+distance2Text.mesh.position.set(10, baseOffset.y, baseOffset.z + dist/-2);
+scene.add(distance2Text.mesh);
+editText.push(distance2Text);
+
+
+var resetButton = createTextBox('Reset', 16, 8, true);
+resetButton.mesh.rotation.y = Math.PI/2;
+resetButton.mesh.position.set(10, 50, -1100);
+scene.add(resetButton.mesh);
+intersectTests.push(resetButton.mesh);
+
+var saveButton = createTextBox('Save ', 16, 8, true);
+saveButton.mesh.rotation.y = Math.PI/2;
+saveButton.mesh.position.set(10, -50, -1100);
+scene.add(saveButton.mesh);
+intersectTests.push(saveButton.mesh);
+
+
+var lineMaterial = new THREE.LineBasicMaterial({color : 0x808080})
+var geometry = new THREE.Geometry();
+geometry.vertices.push(
+	new THREE.Vector3( 0, baseOffset.y, 0 ),
+	new THREE.Vector3( 0, 100, 0 ),
+
+	new THREE.Vector3( 0, 100, 0 ),
+	new THREE.Vector3( 0, 100, -1000 ),
+
+	new THREE.Vector3( 0, 100, -1000 ),
+	new THREE.Vector3( 0, baseOffset.y, -1000 ),
+
+	new THREE.Vector3( 0, baseOffset.y, 0 ),
+	new THREE.Vector3( 0, baseOffset.y, -1000 ),
+
+	new THREE.Vector3( 0, baseOffset.y, baseOffset.z ),
+	new THREE.Vector3( 0, 0, baseOffset.z ),
+
+	new THREE.Vector3( 0, 0, 0 ),
+	new THREE.Vector3( 0, 0, -1000 )
+);
+var line = new THREE.LineSegments( geometry, lineMaterial );
+scene.add( line );
+function updateHydra()
+{
+	line.geometry.vertices[0].y = HydraBase.position.y;
+	line.geometry.vertices[5].y = HydraBase.position.y;
+	line.geometry.vertices[6].y = HydraBase.position.y;
+	line.geometry.vertices[7].y = HydraBase.position.y;
+	line.geometry.vertices[8].y = HydraBase.position.y;
+	line.geometry.vertices[8].z = HydraBase.position.z;
+	line.geometry.vertices[9].z = HydraBase.position.z;
+	line.geometry.verticesNeedUpdate = true
+	
+	//heightText.updateText(Math.round(-HydraBase.position.y) + ' mm');
+	heightText.update(Math.round(-HydraBase.position.y));
+	heightText.mesh.position.y = HydraBase.position.y/2;
+	heightText.mesh.position.z = HydraBase.position.z;
+
+	//distanceText.updateText(Math.round(-HydraBase.position.z) + ' mm');
+	distanceText.update(Math.round(-HydraBase.position.z));
+	distanceText.mesh.position.y = HydraBase.position.y;
+	distanceText.mesh.position.z = HydraBase.position.z/2;
+
+	var dist = 1000+HydraBase.position.z;
+	//distance2Text.updateText(Math.round(dist) + ' mm');
+	distance2Text.update(Math.round(dist));
+	distance2Text.mesh.position.y = HydraBase.position.y;
+	distance2Text.mesh.position.z = HydraBase.position.z + dist/-2;
+}
+
+
+var captured = null;
+var focus = null;
+
+for (var i = 0; i < editText.length; i++)
+{
+	intersectTests.push(editText[i].mesh);
+}
+
+var maxHeight = -100;
+var minHeight = -900;
+var maxDistance = -200;
+var minDistance = -800;
+function clamp(x, min, max) { return Math.min(max, Math.max(min, x)) }
+var mouseVector = new THREE.Vector3();
+var raycaster = new THREE.Raycaster();
+var intersected = false;
+var intersects = [];
+var offset = new THREE.Vector3();
+var point = new THREE.Vector3();
+var plane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
+function onMouseDown(e)
+{
+	mouseVector.x = 2 * (e.clientX / window.innerWidth) - 1;
+	mouseVector.y = 1 - 2 * ( e.clientY / window.innerHeight );
+	raycaster.setFromCamera( mouseVector.clone(), camera );
+	//intersects = raycaster.intersectObjects( scene.children );
+	intersects = raycaster.intersectObjects( intersectTests, true );
+	if (intersects.length > 0)
+	{
+		if (intersects[0].object == resetButton.mesh)
+		{
+			if (focus)
+			{
+				focus.blur();
+				focus = null;
+			}
+			console.log('reset');
+			loadHydra(HydraBase.position);
+			updateHydra();
+			return;
+		}
+
+		if (intersects[0].object == saveButton.mesh)
+		{
+			if (focus)
+			{
+				focus.blur();
+				focus = null;
+			}
+			console.log('save');
+			saveHydra(HydraBase.position);
+			return;
+		}
+
+		offset.copy(intersects[0].object.position);
+		offset.sub(intersects[0].point);
+		plane.constant = -plane.normal.dot(intersects[0].point);
+		intersected = true;
+
+		var found = false;
+		for (var i = 0; i < editText.length; i++)
+		{
+			var edit = editText[i];
+			if (intersects[0].object == edit.mesh)
+			{
+				var mesh = edit.mesh;
+				//console.log(intersects[0].point);
+				//console.log(mesh.position);
+				point.copy(intersects[0].point)
+				point.sub(mesh.position)
+				//console.log(point);
+				var x =
+					point.x * mesh.matrix.elements[0] +
+					point.y * mesh.matrix.elements[1] +
+					point.z * mesh.matrix.elements[2];
+				var y =
+					point.x * mesh.matrix.elements[4] +
+					point.y * mesh.matrix.elements[5] +
+					point.z * mesh.matrix.elements[6];
+				//console.log(x + ' ' + y);
+				if (edit.onmousedown(x, y))
+				{
+					if (focus && focus != edit)
+					{
+						focus.blur();
+					}
+					captured = edit;
+					focus = edit;
+					edit.focus();
+					edit.redraw();
+				}
+				else
+				{
+					intersected = false;
+				}
+				break;
+			}
+		}
+		if (!intersected && focus)
+		{
+			focus.blur();
+			focus = null;
+		}
+	}
+	else if (focus)
+	{
+		focus.blur();
+		focus = null;
+	}
+}
+
+function onMouseUp(e)
+{
+	intersected = false;
+	captured = null;
+}
+
+function onMouseMove(e)
+{
+	if (!intersected)
+	{
+		return;
+	}
+	mouseVector.x = 2 * (e.clientX / window.innerWidth) - 1;
+	mouseVector.y = 1 - 2 * ( e.clientY / window.innerHeight );
+	raycaster.setFromCamera( mouseVector.clone(), camera );
+
+	if (raycaster.ray.intersectPlane(plane, point))
+	{
+		if (captured)
+		{
+			point.sub(captured.mesh.position)
+			//console.log(point);
+			var x =
+				point.x * captured.mesh.matrix.elements[0] +
+				point.y * captured.mesh.matrix.elements[1] +
+				point.z * captured.mesh.matrix.elements[2];
+			var y =
+				point.x * captured.mesh.matrix.elements[4] +
+				point.y * captured.mesh.matrix.elements[5] +
+				point.z * captured.mesh.matrix.elements[6];
+			captured.onmousemove(x, y);
+			captured.redraw();
+		}
+		else
+		{
+			point.add(offset);
+			point.y = clamp(point.y, minHeight, maxHeight);
+			point.z = clamp(point.z, minDistance, maxDistance);
+			HydraBase.position.copy(point);
+			updateHydra()
+		}
+	}
+}
+
+function onKeyDown(e)
+{
+	if (focus)
+	{
+		if (e.which == 8)
+			e.preventDefault();
+		focus.onkeydown(e.which, e.shiftKey, e.ctrlKey, e.altKey);
+		focus.redraw();
+	}
+}
+
+function onKeyPress(e)
+{
+	if (focus)
+	{
+		if (e.which == 13)
+		{
+			focus.sync();
+			focus.blur();
+			focus = null;
+		}
+		else
+		{
+			focus.onkeypress(e.charCode);
+			focus.redraw();
+		}
+	}
+}
+
+function onCopy(e)
+{
+	if (focus && focus.hasSelection())
+	{
+		e.preventDefault();
+		e.clipboardData.setData('text/plain', focus.getSelection());
+	}
+}
+
+function onCut(e)
+{
+	if (focus && focus.hasSelection())
+	{
+		e.preventDefault();
+		e.clipboardData.setData('text/plain', focus.cutSelection());
+		focus.redraw();
+	}
+}
+
+function onPaste(e)
+{
+	if (focus)
+	{
+		e.preventDefault();
+		focus.paste(e.clipboardData.getData('text/plain'));
+		focus.redraw();
+	}
+}
+
+
+window.addEventListener( 'mousedown', onMouseDown, true );
+window.addEventListener( 'mouseup', onMouseUp, true );
+window.addEventListener( 'mousemove', onMouseMove, true );
+
+window.addEventListener('keydown', onKeyDown, true);
+//window.addEventListener('keyup', onKeyUp, true);
+window.addEventListener('keypress', onKeyPress, true);
+
+window.addEventListener('copy', onCopy, true);
+window.addEventListener('cut', onCut, true);
+window.addEventListener('paste', onPaste, true);
+
+
+function animate()
+{
+	requestAnimationFrame( animate );
+	renderer.render( scene, camera );
+}
+animate()
+
+</script>
+</body></html>

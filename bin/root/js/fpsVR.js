@@ -182,8 +182,9 @@ function createVRPlayer(context)
 	hydraLeftController.castShadow = true;
 	hydraLeftController.receiveShadow = true;
 	var hydraBaseObject = new THREE.Object3D();
-	hydraBaseObject.position.z = -0.59;
-	hydraBaseObject.position.y = -0.4;
+	hydraBaseObject.position.x = baseOffset.x / 1000;
+	hydraBaseObject.position.y = baseOffset.y / 1000;
+	hydraBaseObject.position.z = baseOffset.z / 1000;
 	hydraBaseObject.add( hydraRightController );
 	hydraBaseObject.add( hydraLeftController );
 	playerBody.add( hydraBaseObject );
@@ -222,11 +223,12 @@ function createVRPlayer(context)
 
 		getPlayerGun(gunPos, gunDir);
 
-		ballBody.velocity.set(	gunDir.x * shootVelo,
-								gunDir.y * shootVelo,
-								gunDir.z * shootVelo);
-		ballBody.position.copy(gunPos);
-		ballMesh.position.copy(gunPos);
+		ballBody.velocity.set(
+				gunDir.x * shootVelo + sphereBody.velocity.x,
+				gunDir.y * shootVelo + sphereBody.velocity.y,
+				gunDir.z * shootVelo + sphereBody.velocity.z);
+		ballBody.position.copy( gunPos );
+		ballMesh.position.copy( gunPos );
 
 		var ballUpdateable = new CannonUpdateable(ballBody, ballMesh);
 		balls.push(ballUpdateable);

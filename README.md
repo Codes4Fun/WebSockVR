@@ -9,9 +9,11 @@ Not limited to localhost, so a remote mobile device can also access VR sensors.
 
 ##Running
 
-Open a command line, go to the bin directory and run WebSockVR.exe
+Under bin/, run WebSockVR.exe.
 
 To test it, point your browser to localhost:6438 and it will load web page with links to different tests (WebVR test included).
+
+Before running the WebVR demos it is recommended you run the setup page for positioning the hydra relative to your hmd.
 
 ##Developing webpages
 
