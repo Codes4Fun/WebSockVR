@@ -3153,12 +3153,15 @@ static int substitute_index_file(struct mg_connection *conn, char *path,
 // Return True if we should reply 304 Not Modified.
 static int is_not_modified(const struct mg_connection *conn,
                            const struct file *filep) {
-  char etag[64];
-  const char *ims = mg_get_header(conn, "If-Modified-Since");
-  const char *inm = mg_get_header(conn, "If-None-Match");
-  construct_etag(etag, sizeof(etag), filep);
-  return (inm != NULL && !mg_strcasecmp(etag, inm)) ||
-    (ims != NULL && filep->modification_time <= parse_date_string(ims));
+  const char *cond;
+  if (cond = mg_get_header(conn, "If-None-Match")) {
+    char etag[64];
+    construct_etag(etag, sizeof(etag), filep);
+	return mg_strcasecmp(etag, cond) == 0;
+  } else if (cond = mg_get_header(conn, "If-Modified-Since")) {
+    return filep->modification_time <= parse_date_string(cond);
+  }
+  return 0;
 }
 
 static int forward_body_data(struct mg_connection *conn, FILE *fp,
