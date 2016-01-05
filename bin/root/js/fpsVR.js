@@ -253,8 +253,14 @@ function createVRPlayer(context)
 			var state = gPositionSensor.getState();
 			if (state)
 			{
-				cameraPivot.quaternion.copy(state.orientation);
-				cameraPivot.position.copy(state.position);
+				if (state.orientation)
+				{
+					cameraPivot.quaternion.copy(state.orientation);
+				}
+				if (state.position)
+				{
+					cameraPivot.position.copy(state.position);
+				}
 			}
 		}
 		if (gHMD && (document.webkitFullscreenElement || document.mozFullScreenElement))

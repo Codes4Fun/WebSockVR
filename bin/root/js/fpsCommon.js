@@ -32,7 +32,7 @@ function loadHydra(basePosition)
 		basePosition.copy(position);
 	}
 }
-var baseOffset = new Vector3(0, -400, -590);
+var baseOffset = new THREE.Vector3(0, -400, -590);
 loadHydra(baseOffset);
 
 
