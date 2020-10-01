@@ -1,5 +1,5 @@
 
-#WebSockVR
+# WebSockVR
 
 A small webserver that allows websocket access to local VR sensors.
 
@@ -7,7 +7,7 @@ Currently only supports Razer Hydra.
 
 Not limited to localhost, so a remote mobile device can also access VR sensors.
 
-##Running
+## Running
 
 Under bin/, run WebSockVR.exe.
 
@@ -15,7 +15,7 @@ To test it, point your browser to localhost:6438 and it will load web page with 
 
 Before running the WebVR demos it is recommended you run the setup page for positioning the hydra relative to your hmd.
 
-##Developing webpages
+## Developing webpages
 
 The code for the test pages is located in the bin/root directory.
 
@@ -25,7 +25,7 @@ bin/root/js/scene.js - shows how to read buttons/triggers/joysticks.
 
 The positional values are in millimeters.
 
-##Building
+## Building
 
 Currently only set to build under MSVC with the Sixsense SDK.
 
@@ -34,7 +34,7 @@ Currently only set to build under MSVC with the Sixsense SDK.
 3. Copy the Sixense SDK to the src directory, or update the project to point to the location of it.
 4. Open up the solution in Visual C++ and build!
 
-##Legal stuff
+## Legal stuff
 
 All source and data unique to this project are under the MIT License.
 
